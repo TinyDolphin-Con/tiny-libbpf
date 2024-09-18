@@ -1,0 +1,6 @@
+[submodule "third_party/libbpf/bpftool"]
+	path = third_party/libbpf/bpftool
+	url = https://github.com/libbpf/bpftool
+[submodule "third_party/libbpf/blazesym"]
+	path = third_party/libbpf/blazesym
+	url = https://github.com/libbpf/blazesym
