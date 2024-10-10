@@ -6,14 +6,14 @@
 - 需要交叉编译的库: zlib, libelf
 
 ```bash
-cd /home/qcraft/workspace/ebpf/
+cd ${HOME}/workspace/ebpf/
 wget https://developer.arm.com/-/media/Files/downloads/gnu-a/10.3-2021.07/binrel/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.xz
 tar xJf gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.xz
 cd xJf gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu.tar.xz
 # 导出交叉编译工具链
 export ARCH=arm64
 export CROSS_COMPILE=aarch64-none-linux-gnu-
-export PATH=$PATH:/home/qcraft/workspace/ebpf/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin
+export PATH=$PATH:${HOME}/workspace/ebpf/gcc-arm-10.3-2021.07-x86_64-aarch64-none-linux-gnu/bin
 export CC=aarch64-none-linux-gnu-gcc
 export CXX=aarch64-none-linux-gnu-g++
 ```
@@ -21,7 +21,7 @@ export CXX=aarch64-none-linux-gnu-g++
 - 判断是否存在 zlib 和 libelf, 若存在,就不需要再执行以下交叉编译步骤
 
 ```bash
-cd /home/qcraft/workspace/ebpf/
+cd ${HOME}/workspace/ebpf/
 find . -name libelf.*
 find . -name libz.*
 ```
@@ -39,7 +39,7 @@ make install
 ```
 
 - 编译产出的头文件和 lib 库位于当前目录下的 \_install;
-- 路径: /home/qcraft/workspace/ebpf/zlib-1.3.1/\_install
+- 路径: ${HOME}/workspace/ebpf/zlib-1.3.1/\_install
 
 ## 交叉编译 libelf
 
@@ -53,8 +53,8 @@ tar -axf elfutils-latest.tar.bz2 && cd elfutils-0.191
 ./configure --prefix=$PWD/_install --build=x86_64-linux-gnu \
 	--host=aarch64-none-linux-gnu \
     CC=aarch64-none-linux-gnu-gcc CXX=aarch64-none-linux-gnu-g++ \
-    CFLAGS=-I/home/qcraft/workspace/ebpf/zlib-1.3.1/_install/include \
-    LDFLAGS=-L/home/qcraft/workspace/ebpf/zlib-1.3.1/_install/lib \
+    CFLAGS=-I${HOME}/workspace/ebpf/zlib-1.3.1/_install/include \
+    LDFLAGS=-L${HOME}/workspace/ebpf/zlib-1.3.1/_install/lib \
     LIBS=-lz \
     --disable-nls --disable-rpath --disable-libdebuginfod --disable-debuginfod \
     --with-zlib
@@ -63,7 +63,7 @@ make install
 ```
 
 - 编译产出的头文件和 lib 库位于当前目录下的 \_install;
-- 路径: /home/qcraft/workspace/ebpf/elfutils-0.191/\_install
+- 路径: ${HOME}/workspace/ebpf/elfutils-0.191/\_install
 
 ## 安装 rust 语言环境(cargo)
 
@@ -80,11 +80,11 @@ rustup show
 
 ## 交叉编译 libbpf
 
-- N.B. 注意,若上述安装路径不一致,请修改如下文件内容 /home/qcraft/qcraft/offboard/libbpf/src/build_env.sh
+- N.B. 注意,若上述安装路径不一致,请修改如下文件内容 ${HOME}/workspace/tiny-libbpf/build_env.sh
 
 ```bash
-cd /home/qcraft/qcraft/offboard/libbpf/src
 source build_env.sh
+cd src
 # 例子: 交叉编译 memleak
 make clean; make memleak V=1
 # 或者编译所有 APP

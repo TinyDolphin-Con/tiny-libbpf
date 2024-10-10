@@ -37,9 +37,10 @@ COMMON_OBJ = \
 	$(OUTPUT)/compat.o \
 	#
 
-BZS_APPS = profile
+BZS_APPS =
+# BZS_APPS = profile
 
-APPS = execsnoop
+APPS = execsnoop exitsnoop
 # APPS = minimal minimal_legacy minimal_ns bootstrap uprobe kprobe fentry \
 #        usdt sockfilter tc ksyscall task_iter lsm
 
@@ -86,8 +87,8 @@ $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
 .PHONY: package
 package: $(APPS)
-	$(Q)tar -czvf $(EBPF_PACKAGE_NAME) $(APPS)
-	$(Q)rm -rf $(OUTPUT) $(APPS)
+	$(Q)tar -czvf $(OUTPUT)/$(EBPF_PACKAGE_NAME) $(APPS)
+	$(Q)rm -rf $(APPS)
 
 .PHONY: all
 all: $(APPS)
@@ -95,7 +96,7 @@ all: $(APPS)
 .PHONY: clean
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) $(APPS) $(EBPF_PACKAGE_NAME)
+	$(Q)rm -rf $(OUTPUT) $(APPS)
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)

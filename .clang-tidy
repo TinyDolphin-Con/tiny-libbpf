@@ -1,0 +1,82 @@
+UseColor: true
+
+Checks: >
+  -*,
+  performance-*,
+  clang-analyzer-core.VLASize,
+  clang-analyzer-core.uninitialized.Branch,
+  clang-analyzer-core.uninitialized.ArraySubscript,
+  readability-function-cognitive-complexity,
+  readability-function-size,
+  readability-identifier-naming,
+  readability-implicit-bool-conversion,
+  readability-simplify-boolean-expr,
+  bugprone-use-after-move,
+  bugprone-argument-comment,
+  bugprone-assignment-in-if-condition,
+  bugprone-bool-pointer-implicit-conversion,
+  bugprone-branch-clone,
+  bugprone-copy-constructor-init,
+  bugprone-dangling-handle,
+  bugprone-reserved-identifier,
+  bugprone-suspicious-include,
+  bugprone-suspicious-enum-usage,
+  bugprone-unused-raii,
+  bugprone-suspicious-string-compare,
+  bugprone-suspicious-semicolon,
+  bugprone-assert-side-effect,
+  google-default-arguments,
+  google-explicit-constructor,
+  modernize-make-shared,
+  modernize-make-unique,
+  modernize-avoid-bind
+
+CheckOptions:
+  - { key: readability-function-size.LineThreshold, value: 300 }
+  - { key: readability-function-size.StatementThreshold, value: 300 }
+  - { key: readability-function-cognitive-complexity.Threshold, value: 100 }
+  - { key: readability-function-cognitive-complexity.IgnoreMacros, value: true }
+  - { key: readability-identifier-naming.NamespaceCase, value: lower_case }
+  - { key: readability-identifier-naming.ClassCase, value: CamelCase }
+  - { key: readability-identifier-naming.StructCase, value: CamelCase }
+  - {
+      key: readability-identifier-naming.TemplateParameterCase,
+      value: CamelCase,
+    }
+  - {
+      key: readability-identifier-naming.ValueTemplateParameterCase,
+      value: lower_case,
+    }
+  - { key: readability-identifier-naming.FunctionCase, value: aNy_CasE }
+  - { key: readability-identifier-naming.VariableCase, value: lower_case }
+  - { key: readability-identifier-naming.ParameterCase, value: lower_case }
+  - { key: readability-identifier-naming.ClassMemberCase, value: lower_case }
+  - { key: readability-identifier-naming.ClassMemberSuffix, value: _ }
+  - { key: readability-identifier-naming.PrivateMemberCase, value: lower_case }
+  - { key: readability-identifier-naming.PrivateMemberSuffix, value: _ }
+  - { key: readability-identifier-naming.ProtectedMemberSuffix, value: _ }
+  - { key: readability-identifier-naming.EnumConstantCase, value: CamelCase }
+  - { key: readability-identifier-naming.EnumConstantPrefix, value: k }
+  - {
+      key: readability-identifier-naming.ConstexprVariableCase,
+      value: CamelCase,
+    }
+  - { key: readability-identifier-naming.ConstexprVariablePrefix, value: k }
+  - { key: readability-identifier-naming.GlobalConstantCase, value: CamelCase }
+  - { key: readability-identifier-naming.GlobalConstantPrefix, value: k }
+  - { key: readability-identifier-naming.MemberConstantCase, value: CamelCase }
+  - { key: readability-identifier-naming.MemberConstantPrefix, value: k }
+  - { key: readability-identifier-naming.StaticConstantCase, value: CamelCase }
+  - { key: readability-identifier-naming.StaticConstantPrefix, value: k }
+  - { key: readability-simplify-boolean-expr.SimplifyDeMorgan, value: false }
+  - { key: bugprone-argument-comment.StrictMode, value: true }
+  - { key: bugprone-argument-comment.IgnoreSingleArgument, value: true }
+  - { key: bugprone-argument-comment.CommentBoolLiterals, value: true }
+  - { key: bugprone-argument-comment.CommentNullPtrs, value: true }
+  - { key: misc-unused-parameters.StrictMode, value: true }
+  - { key: modernize-avoid-bind.PermissiveParameterList, value: 0 }
+
+HeaderFilterRegex: "*/com_qcraft/[onboard|offboard|third_party|experimental|cyber]/*"
+WarningsAsErrors: "*"
+# References
+# https://github.com/googleapis/google-cloud-cpp/blob/main/.clang-tidy
