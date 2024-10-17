@@ -10,7 +10,7 @@
 #define WRITE_ONCE(x, val) ((*(volatile typeof(x)*)&(x)) = val)
 
 /**
- * @brief
+ * @brief 计算一个数值以 2 为底的对数(32 位无符号整数)
  */
 static __always_inline u64 log2(u32 v) {
   u32 shift, r;
@@ -31,6 +31,9 @@ static __always_inline u64 log2(u32 v) {
   return r;
 }
 
+/**
+ * @brief 计算一个数值以 2 为底的对数(64 位无符号整数)
+ */
 static __always_inline u64 log2l(u64 v) {
   u32 hi = v >> 32;
 
@@ -42,4 +45,3 @@ static __always_inline u64 log2l(u64 v) {
 }
 
 #endif /* __BITS_BPF_H */
-

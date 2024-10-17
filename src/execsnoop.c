@@ -52,8 +52,7 @@ static struct timespec start_time;
 
 // 程序版本和文档说明
 const char* argp_program_version = "execsnoop 0.1";
-const char* argp_program_bug_address =
-    "https://github.com/TinyDolphin-Con/tiny-libbpf";
+const char* argp_program_bug_address = "zhouyonglong";
 const char argp_program_doc[] =
     "Trace exec syscalls\n"
     "\n"

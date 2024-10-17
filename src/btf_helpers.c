@@ -25,12 +25,11 @@ extern unsigned char _binary_min_core_btfs_tar_gz_end[] __attribute__((weak));
 
 // 结构体,保存了操作系统的基本信息
 struct os_info {
-  char id[FIELD_LEN];      // 操作系统 ID(例如 ubuntu)
-  char version[FIELD_LEN]; // 操作系统版本(例如 22.04)
-  char arch[FIELD_LEN];    // 体系结构(例如 x86_64)
-  char kernel_release[FIELD_LEN]; // 内核版本号
+  char id[FIELD_LEN];              // 操作系统 ID(例如 ubuntu)
+  char version[FIELD_LEN];         // 操作系统版本(例如 22.04)
+  char arch[FIELD_LEN];            // 体系结构(例如 x86_64)
+  char kernel_release[FIELD_LEN];  // 内核版本号
 };
-
 
 /**
  * @brief 获取操作系统信息的函数
@@ -214,8 +213,9 @@ static char* tar_file_start(struct tar_header* tar, const char* name,
  * 主要实现逻辑:
  *  如果系统已经提供了 BTF,则直接返回;
  *  如果没有 BTF 文件,
- *    就从 _binary_min_core_btfs_tar_gz_start 和 _binary_min_core_btfs_tar_gz_end 之间的压缩 tar 文件中提取
- *  解压 tar 文件后,查找与当前操作系统匹配的 BTF 文件并保存到 /tmp 目录
+ *    就从 _binary_min_core_btfs_tar_gz_start 和
+ * _binary_min_core_btfs_tar_gz_end 之间的压缩 tar 文件中提取 解压 tar
+ * 文件后,查找与当前操作系统匹配的 BTF 文件并保存到 /tmp 目录
  */
 int ensure_core_btf(struct bpf_object_open_opts* opts) {
   char name_fmt[] = "./%s/%s/%s/%s.btf";
