@@ -50,7 +50,7 @@ struct {
 } start SEC(".maps");
 
 // 声明一个 hist 类型的静态变量,表示直方图的初始值
-static struct hist zero;
+static struct hist initial_hist;
 
 // 定义一个哈希映射(hists),存储直方图数据
 struct {
@@ -85,7 +85,7 @@ static int trace_enqueue(u32 tgid, u32 pid) {
 /**
  * @brief 获取任务的 PID 命名空间
  *
- * @param task 指向任务的 PID 命名空间
+ * @param task 指向任务的指针
  */
 static unsigned int pid_namespace(struct task_struct* task) {
   struct pid* pid;
@@ -173,7 +173,7 @@ static int handle_switch(bool preempt, struct task_struct* prev,
     hkey = -1;
   }
   // 从 hists 哈希映射查找或初始化 histp
-  histp = bpf_map_lookup_or_try_init(&hists, &hkey, &zero);
+  histp = bpf_map_lookup_or_try_init(&hists, &hkey, &initial_hist);
   if (!histp) {
     goto cleanup;
   }
