@@ -218,7 +218,7 @@ int main(int argc, char** argv) {
       .doc = argp_program_doc,
   };
   struct perf_buffer* pb = NULL;
-  struct exitsnoop_bpf* obj;
+  struct exitsnoop_bpf* obj = NULL;
   int err;
   int idx, cg_map_fd;
   int cgfd = -1;

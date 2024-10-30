@@ -108,8 +108,7 @@ static void print_runq_occupancy(struct runqlen_bpf__bss* bss);
  */
 static void print_linear_hists(struct runqlen_bpf__bss* bss);
 
-// ========= 变量定义 =========
-
+// ========= 全局常量|变量定义 =========
 // 程序版本和文档说明
 const char* argp_program_version = "runqlen 0.1";
 const char* argp_program_bug_address =
@@ -139,7 +138,7 @@ static const struct argp_option opts[] = {
     {},
 };
 
-// 定义两个标志位,用于检测程序退出信号(SIGINT)和子进程退出信号(SIGCHLD)
+// 定义标志位,用于检测程序退出信号(SIGINT)
 static volatile sig_atomic_t exiting;
 
 // 定义信号处理结构体 sigaction,并将 sig_handler 设置为处理信号的回调函数
