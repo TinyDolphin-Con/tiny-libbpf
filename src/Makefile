@@ -1,31 +1,62 @@
 # SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause)
 OUTPUT := .output
 CLANG ?= clang
-LIBBPF_SRC := $(abspath ../third_party/libbpf/bpftool/libbpf/src)
+LLVM_STRIP ?= llvm-strip
+
 BPFTOOL_SRC := $(abspath ../third_party/libbpf/bpftool/src)
-LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
 BPFTOOL_OUTPUT ?= $(abspath $(OUTPUT)/bpftool)
 BPFTOOL ?= $(BPFTOOL_OUTPUT)/bootstrap/bpftool
-LIBBLAZESYM_SRC := $(abspath ../third_party/libbpf/blazesym/)
-LIBBLAZESYM_FILE := $(abspath $(LIBBLAZESYM_SRC)/target/release/libblazesym_c.a)
-LIBBLAZESYM_INC := $(abspath $(LIBBLAZESYM_SRC)/capi/include)
-LIBBLAZESYM_OBJ := $(abspath $(OUTPUT)/libblazesym_c.a)
-EBPF_PACKAGE_NAME := ebpf.tar.gz
+
+LIBBPF_SRC := $(abspath ../third_party/libbpf/bpftool/libbpf/src)
+LIBBPF_OBJ := $(abspath $(OUTPUT)/libbpf.a)
+
+LIBBLAZESYM_DIR := $(abspath ../third_party/libbpf/blazesym/)
+LIBBLAZESYM_SRC := $(abspath $(LIBBLAZESYM_DIR)/target/release/libblazesym_c.a)
+LIBBLAZESYM_INC := $(abspath $(LIBBLAZESYM_DIR)/capi/include/blazesym.h)
+# LIBBLAZESYM_INC := $(abspath $(LIBBLAZESYM_DIR)/capi/include)
+# LIBBLAZESYM_OBJ := $(abspath $(OUTPUT)/libblazesym_c.a)
+
+# EBPF_PACKAGE_NAME := ebpf.tar.gz
+
+INCLUDES := -I$(OUTPUT) -I../third_party/libbpf/bpftool/libbpf/include/uapi
+CFLAGS := -g -O2 -Wall -Wmissing-field-initializers -Werror -Werror=undef
+BPFCFLAGS := -g -O2 -Wall -Werror=undef
+
+BPFCFLAGS_softirqs := $(BPFCFLAGS) -mcpu=v3
+# INSTALL ?= install
+# prefix ?= /usr/local
+# bindir := $(prefix)/bin
+
 ARCH ?= $(shell uname -m | sed 's/x86_64/x86/' \
 			 | sed 's/arm.*/arm/' \
-			 | sed 's/aarch64/arm64/' \
-			 | sed 's/ppc64le/powerpc/' \
-			 | sed 's/mips.*/mips/' \
-			 | sed 's/riscv64/riscv/' \
-			 | sed 's/loongarch64/loongarch/')
-VMLINUX := ../third_party/libbpf/vmlinux/$(ARCH)/vmlinux.h
-# Use our own libbpf API headers and Linux UAPI headers distributed with
-# libbpf to avoid dependency on system-wide headers, which could be missing or
-# outdated
-INCLUDES := -I$(OUTPUT) -I../third_party/libbpf/bpftool/libbpf/include/uapi -I$(dir $(VMLINUX)) -I$(LIBBLAZESYM_INC)
-CFLAGS := -g -O2 -Wall -Wmissing-field-initializers -Werror
-ALL_CFLAGS := $(CFLAGS) $(EXTRA_CFLAGS)
-ALL_LDFLAGS := $(LDFLAGS) $(EXTRA_LDFLAGS)
+			 | sed 's/aarch64/arm64/')
+VMLINUX_DIR := $(abspath ../third_party/libbpf/vmlinux/)
+ARCH_DIR := $(abspath ${VMLINUX_DIR}/$(ARCH)/)
+VMLINUX := $(abspath ${ARCH_DIR}/vmlinux.h)
+BTFHUB_ARCHIVE ?= $(abspath btfhub-archive)
+
+CARGO ?= $(shell which cargo)
+ifeq ($(strip $(CARGO)),)
+USE_BLAZESYM ?= 0
+else
+USE_BLAZESYM ?= 1
+endif
+
+ifeq ($(wildcard $(VMLINUX)),)
+$(error Architecture $(VMLINUX) is not supported yet. Please open an issue)
+endif
+BZ_APPS = memleak
+
+
+APPS = execsnoop exitsnoop cpudist runqlat runqlen funclatency oomkill offcputime oncputime biolatency bitesize biosnoop cachestat filetop fsslower vfsstat
+
+# export variables that are used in Makefile.btfgen as well.
+export OUTPUT BPFTOOL ARCH BTFHUB_ARCHIVE APPS
+
+FSSLOWER_ALIASES = btrfsslower ext4slower nfsslower xfsslower f2fsslower bcachefsslower zfsslower
+FSDIST_ALIASES = btrfsdist ext4dist nfsdist xfsdist f2fsdist bcachefsdist zfsdist
+SIGSNOOP_ALIAS = killsnoop
+APP_ALIASES = $(FSDIST_ALIASES) $(FSSLOWER_ALIASES) ${SIGSNOOP_ALIAS}
 
 COMMON_OBJ = \
 	$(OUTPUT)/trace_helpers.o \
@@ -35,44 +66,14 @@ COMMON_OBJ = \
 	$(OUTPUT)/uprobe_helpers.o \
 	$(OUTPUT)/btf_helpers.o \
 	$(OUTPUT)/compat.o \
+	$(if $(ENABLE_MIN_CORE_BTFS),$(OUTPUT)/min_core_btf_tar.o) \
 	#
 
-BZS_APPS = memleak
-
-APPS = execsnoop exitsnoop cpudist runqlat runqlen funclatency oomkill
-# APPS = minimal minimal_legacy minimal_ns bootstrap uprobe kprobe fentry \
-#        usdt sockfilter tc ksyscall task_iter lsm
-
-CARGO ?= $(shell which cargo)
-ifeq ($(strip $(CARGO)),)
-BZS_APPS :=
-else
-APPS += $(BZS_APPS)
-# Required by libblazesym
-ALL_LDFLAGS += -lrt -ldl -lpthread -lm
-endif
-
-# Get Clang's default includes on this system. We'll explicitly add these dirs
-# to the includes list when compiling with `-target bpf` because otherwise some
-# architecture-specific dirs will be "missing" on some architectures/distros -
-# headers such as asm/types.h, asm/byteorder.h, asm/socket.h, asm/sockios.h,
-# sys/cdefs.h etc. might be missing.
-#
-# Use '-idirafter': Don't interfere with include mechanics except where the
-# build would have failed anyways.
-CLANG_BPF_SYS_INCLUDES ?= $(shell $(CLANG) -v -E - </dev/null 2>&1 \
-	| sed -n '/<...> search starts here:/,/End of search list./{ s| \(/.*\)|-idirafter \1|p }')
-
-ifeq ($(V),1)
-	Q =
-	msg =
-else
-	Q = @
-	msg = @printf '  %-8s %s%s\n'					\
-		      "$(1)"						\
-		      "$(patsubst $(abspath $(OUTPUT))/%,%,$(2))"	\
-		      "$(if $(3), $(3))";
-	MAKEFLAGS += --no-print-directory
+ifeq ($(USE_BLAZESYM),1)
+COMMON_OBJ += \
+	$(OUTPUT)/libblazesym.a \
+	$(OUTPUT)/blazesym.h \
+	#
 endif
 
 define allow-override
@@ -84,73 +85,122 @@ endef
 $(call allow-override,CC,$(CROSS_COMPILE)cc)
 $(call allow-override,LD,$(CROSS_COMPILE)ld)
 
-.PHONY: package
-package: $(APPS)
-	$(Q)tar -czvf $(OUTPUT)/$(EBPF_PACKAGE_NAME) $(APPS)
-	$(Q)rm -rf $(APPS)
-
 .PHONY: all
-all: $(APPS)
+all: $(APPS) $(APP_ALIASES)
+
+ifeq ($(V),1)
+Q =
+msg =
+else
+Q = @
+msg = @printf '  %-8s %s%s\n' "$(1)" "$(notdir $(2))" "$(if $(3), $(3))";
+MAKEFLAGS += --no-print-directory
+endif
+
+ifneq ($(EXTRA_CFLAGS),)
+CFLAGS += $(EXTRA_CFLAGS)
+endif
+ifneq ($(EXTRA_LDFLAGS),)
+LDFLAGS += $(EXTRA_LDFLAGS)
+endif
+ifeq ($(USE_BLAZESYM),1)
+CFLAGS += -DUSE_BLAZESYM=1
+endif
+
+ifeq ($(USE_BLAZESYM),1)
+LDFLAGS += $(OUTPUT)/libblazesym.a -lrt -lpthread -ldl
+endif
 
 .PHONY: clean
 clean:
 	$(call msg,CLEAN)
-	$(Q)rm -rf $(OUTPUT) $(APPS)
+	$(Q)rm -rf $(OUTPUT) $(APPS) $(APP_ALIASES)
+
+$(LIBBLAZESYM_SRC)::
+	$(Q)cd $(LIBBLAZESYM_DIR)/capi && $(CARGO) build --release
+
+$(OUTPUT)/libblazesym.a: $(LIBBLAZESYM_SRC) | $(OUTPUT)
+	$(call msg,LIB,$@)
+	$(Q)cp $(LIBBLAZESYM_SRC) $@
+
+$(OUTPUT)/blazesym.h: $(LIBBLAZESYM_SRC) | $(OUTPUT)
+	$(call msg,INC,$@)
+	$(Q)cp ${LIBBLAZESYM_INC} $@
 
 $(OUTPUT) $(OUTPUT)/libbpf $(BPFTOOL_OUTPUT):
 	$(call msg,MKDIR,$@)
 	$(Q)mkdir -p $@
 
-# Build libbpf
-$(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(OUTPUT)/libbpf
-	$(call msg,LIB,$@)
-	$(Q)$(MAKE) -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1		      \
-		    OBJDIR=$(dir $@)/libbpf DESTDIR=$(dir $@)		      \
-		    INCLUDEDIR= LIBDIR= UAPIDIR=			      \
-		    install
-
-# Build bpftool
 $(BPFTOOL): | $(BPFTOOL_OUTPUT)
 	$(call msg,BPFTOOL,$@)
-	$(Q)$(MAKE) ARCH= CROSS_COMPILE= OUTPUT=$(BPFTOOL_OUTPUT)/ -C $(BPFTOOL_SRC) bootstrap
+	$(Q)$(MAKE) ARCH= CROSS_COMPILE=  OUTPUT=$(BPFTOOL_OUTPUT)/ -C $(BPFTOOL_SRC) bootstrap
 
-# Bild blazesym
-$(LIBBLAZESYM_FILE)::
-	$(Q)cd $(LIBBLAZESYM_SRC) && $(CARGO) build --package=blazesym-c --release
+$(APPS): %: $(OUTPUT)/%.o $(COMMON_OBJ) $(LIBBPF_OBJ) | $(OUTPUT)
+	$(call msg,BINARY,$@)
+	$(Q)$(CC) $(CFLAGS) $^ $(LDFLAGS) -lelf -lz -o $@
 
-$(LIBBLAZESYM_OBJ): $(LIBBLAZESYM_FILE) | $(OUTPUT)
-	$(call msg,LIB, $@)
-	$(Q)cp $(LIBBLAZESYM_FILE) $@
+ifeq ($(USE_BLAZESYM),1)
+$(patsubst %,$(OUTPUT)/%.o,$(BZ_APPS)): $(OUTPUT)/blazesym.h
+endif
 
-# Build BPF code
-$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT) $(BPFTOOL)
-	$(call msg,BPF,$@)
-	$(Q)$(CLANG) -g -O2 -target bpf -D__TARGET_ARCH_$(ARCH)		      \
-		     $(INCLUDES) $(CLANG_BPF_SYS_INCLUDES)		      \
-		     -c $(filter %.c,$^) -o $(patsubst %.bpf.o,%.tmp.bpf.o,$@)
-	$(Q)$(BPFTOOL) gen object $@ $(patsubst %.bpf.o,%.tmp.bpf.o,$@)
+$(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
 
-# Generate BPF skeletons
+$(OUTPUT)/%.o: %.c $(wildcard %.h) $(LIBBPF_OBJ) | $(OUTPUT)
+	$(call msg,CC,$@)
+	$(Q)$(CC) $(CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+
 $(OUTPUT)/%.skel.h: $(OUTPUT)/%.bpf.o | $(OUTPUT) $(BPFTOOL)
 	$(call msg,GEN-SKEL,$@)
 	$(Q)$(BPFTOOL) gen skeleton $< > $@
 
-# Build user-space code
-$(patsubst %,$(OUTPUT)/%.o,$(APPS)): %.o: %.skel.h
+$(OUTPUT)/softirqs.bpf.o: BPFCFLAGS = $(BPFCFLAGS_softirqs)
 
-$(OUTPUT)/%.o: %.c $(wildcard %.h) | $(OUTPUT)
-	$(call msg,CC,$@)
-	$(Q)$(CC) $(ALL_CFLAGS) $(INCLUDES) -c $(filter %.c,$^) -o $@
+$(OUTPUT)/%.bpf.o: %.bpf.c $(LIBBPF_OBJ) $(wildcard %.h) $(VMLINUX) | $(OUTPUT)
+	$(call msg,BPF,$@)
+	$(Q)$(CLANG) $(BPFCFLAGS) -target bpf -D__TARGET_ARCH_$(ARCH)	      \
+		     -I$(ARCH_DIR)/ $(INCLUDES) -c $(filter %.c,$^) -o $@ &&      \
+	$(LLVM_STRIP) -g $@
 
-$(patsubst %,$(OUTPUT)/%.o,$(BZS_APPS)): $(LIBBLAZESYM_OBJ)
+btfhub-archive: force
+	$(call msg,GIT,$@)
+	$(Q)[ -d "$(BTFHUB_ARCHIVE)" ] || git clone -q https://github.com/aquasecurity/btfhub-archive/ $(BTFHUB_ARCHIVE)
+	$(Q)cd $(BTFHUB_ARCHIVE) && git pull
 
-# Build application binary
-$(APPS): %: $(OUTPUT)/%.o $(COMMON_OBJ) $(LIBBPF_OBJ) | $(OUTPUT)
-	$(call msg,BINARY,$@)
-	$(Q)$(CC) $(ALL_CFLAGS) $^ $(ALL_LDFLAGS) -lelf -lz -o $@
+ifdef ENABLE_MIN_CORE_BTFS
+$(OUTPUT)/min_core_btf_tar.o: $(patsubst %,$(OUTPUT)/%.bpf.o,$(APPS)) btfhub-archive | bpftool
+	$(Q)$(MAKE) -f Makefile.btfgen
+endif
+
+# Build libbpf.a
+$(LIBBPF_OBJ): $(wildcard $(LIBBPF_SRC)/*.[ch]) | $(OUTPUT)/libbpf
+	$(call msg,LIB,$@)
+	$(Q)$(MAKE) -C $(LIBBPF_SRC) BUILD_STATIC_ONLY=1		      \
+		    OBJDIR=$(dir $@)libbpf DESTDIR=$(dir $@)		      \
+		    INCLUDEDIR= LIBDIR= UAPIDIR=			      \
+		    install
+
+$(FSSLOWER_ALIASES): fsslower
+	$(call msg,SYMLINK,$@)
+	$(Q)ln -f -s $(APP_PREFIX)$^ $@
+
+$(FSDIST_ALIASES): fsdist
+	$(call msg,SYMLINK,$@)
+	$(Q)ln -f -s $(APP_PREFIX)$^ $@
+
+$(SIGSNOOP_ALIAS): sigsnoop
+	$(call msg,SYMLINK,$@)
+	$(Q)ln -f -s $(APP_PREFIX)$^ $@
+
+install: $(APPS) $(APP_ALIASES)
+	$(call msg, INSTALL libbpf-tools)
+	$(Q)$(INSTALL) -m 0755 -d $(DESTDIR)$(bindir)
+	$(Q)$(foreach app,$(APPS),$(INSTALL) $(app) $(DESTDIR)$(bindir)/$(APP_PREFIX)$(app);)
+	$(Q)$(foreach alias,$(APP_ALIASES),cp -a $(alias) $(DESTDIR)$(bindir)/$(APP_PREFIX)$(alias);)
+
+.PHONY: force
+force:
 
 # delete failed targets
 .DELETE_ON_ERROR:
-
 # keep intermediate (.skel.h, .bpf.o, etc) targets
 .SECONDARY:

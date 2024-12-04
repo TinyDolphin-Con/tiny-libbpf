@@ -81,8 +81,8 @@ static error_t argp_parse_arg(int key, char* arg, struct argp_state* state);
  */
 static int libbpf_print_fn(enum libbpf_print_level level, const char* format,
                            va_list args);
-/**
 
+/**
  * @brief 设置和附加 perf_event,并与每个 CPU 的 BPF 程序关联
  *
  * @param freq 采集的频率(每秒钟的采样次数)
@@ -93,7 +93,6 @@ static int open_and_attach_perf_event(int freq, struct bpf_program* prog,
                                       struct bpf_link* links[]);
 
 /**
-
  * @brief 计算并打印每个 CPU 的运行队列占用率(runqocc)
  *
  * @param bss 指向 BPF 程序的 BSS 段的指针(BSS 段:BPF 全局数据存储区域)
@@ -101,7 +100,6 @@ static int open_and_attach_perf_event(int freq, struct bpf_program* prog,
 static void print_runq_occupancy(struct runqlen_bpf__bss* bss);
 
 /**
-
  * @brief 以线性方式打印运行队列长度的直方图
  *
  * @param bss 指向 BPF 程序的 BSS 段的指针(BSS 段:BPF 全局数据存储区域)
@@ -192,7 +190,6 @@ int main(int argc, char** argv) {
   if (sigaction(SIGINT, &sig_action, NULL)) {
     perror("failed to set up signal handling");
     err = -errno;
-
     goto cleanup;
   }
 

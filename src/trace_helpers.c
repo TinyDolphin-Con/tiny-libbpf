@@ -1,10 +1,8 @@
 /* SPDX-License-Identifier: (LGPL-2.1 OR BSD-2-Clause) */
 /* Copyright (c) 2024 TinyDolphin */
-
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include "trace_helpers.h"
 
 #include <ctype.h>
 #include <errno.h>
@@ -18,10 +16,13 @@
 #include <time.h>
 #include <unistd.h>
 
+// 提供 eBPF 程序的辅助函数
 #include <bpf/bpf.h>
 #include <bpf/btf.h>
 #include <bpf/libbpf.h>
 
+// 依赖头文件
+#include "trace_helpers.h"
 #include "uprobe_helpers.h"
 
 #define min(x, y)                  \
@@ -102,6 +103,7 @@ static int ksym_cmp(const void* p1, const void* p2) {
   }
   return s1->addr < s2->addr ? -1 : 1;
 }
+
 struct ksyms* ksyms__load(void) {
   char sym_type, sym_name[256];
   struct ksyms* ksyms;
@@ -207,6 +209,7 @@ enum elf_type {
   VDSO,
   UNKNOWN,
 };
+
 struct dso {
   char* name;
   struct load_range* ranges;
@@ -1290,4 +1293,46 @@ bool probe_ringbuf() {
 
   close(map_fd);
   return true;
+}
+
+int split_convert(char* s, const char* delim, void* elems, size_t elems_size,
+                  size_t elem_size, convert_fn_t convert) {
+  char* token;
+  int ret;
+  char* pos = (char*)elems;
+
+  if (!s || !delim || !elems) {
+    return -EINVAL;
+  }
+
+  token = strtok(s, delim);
+  while (token) {
+    if (pos + elem_size > (char*)elems + elems_size) {
+      return -ENOBUFS;
+    }
+
+    ret = convert(token, pos);
+    if (ret) {
+      return -ret;
+    }
+
+    pos += elem_size;
+    token = strtok(NULL, delim);
+  }
+
+  return 0;
+}
+
+int str_to_int(const char* src, void* dest) {
+  errno = 0;
+  *(int*)dest = strtol(src, NULL, 10);
+
+  return errno;
+}
+
+int str_to_long(const char* src, void* dest) {
+  errno = 0;
+  *(long*)dest = strtol(src, NULL, 10);
+
+  return errno;
 }
